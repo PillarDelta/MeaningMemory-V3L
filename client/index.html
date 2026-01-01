@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeaningMemory | Intelligent Context</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-blue: #0071E3;
+      --bg-deep: #050505;
+      --panel-bg: rgba(13, 13, 15, 0.7);
+      --text-main: #F5F5F7;
+      --text-secondary: #86868B;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      
+      --tier-asserted: #34C759;
+      --tier-observed: #0071E3;
+      --tier-preference: #FF9F0A;
+      --tier-hypothesis: #AF52DE;
+      --tier-temporary: #86868B;
+
+      --glass-blur: 24px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Animated Background */
+    .ambient-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: -1;
+      background: 
+        radial-gradient(circle at 20% 30%, rgba(0, 113, 227, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(175, 82, 222, 0.06) 0%, transparent 40%);
+      filter: blur(80px);
+    }
+
+    .ambient-bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3e%3cfilter id='noiseFilter'%3e%3cfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3e%3c/filter%3e%3crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3e%3c/svg%3e");
+      opacity: 0.04;
+      pointer-events: none;
+    }
+
+    /* Overlay for mobile */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 90;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .overlay.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+      padding: 12px;
+      gap: 12px;
+    }
+
+    /* Shared Glass Panel styles */
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--border-subtle);
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 32px 24px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand-name {
+      font-family: 'Urbanist', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+      background: linear-gradient(to bottom, #fff, #888);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .brand-tag {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--primary-blue);
+      font-weight: 700;
+    }
+
+    .scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 16px 24px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin: 24px 8px 12px;
+    }
+
+    .stat-card {
+      padding: 12px 16px;
+      margin-bottom: 4px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s;
+    }
+
+    .stat-card:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .stat-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-name {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .stat-val {
+      font-family: 'Urbanist', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Tier Chips */
+    .tier-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid transparent;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .tier-asserted .dot { background: var(--tier-asserted); box-shadow: 0 0 10px var(--tier-asserted); }
+    .tier-observed .dot { background: var(--tier-observed); box-shadow: 0 0 10px var(--tier-observed); }
+    .tier-preference .dot { background: var(--tier-preference); box-shadow: 0 0 10px var(--tier-preference); }
+    .tier-hypothesis .dot { background: var(--tier-hypothesis); box-shadow: 0 0 10px var(--tier-hypothesis); }
+    .tier-temporary .dot { background: var(--tier-temporary); }
+
+    /* Clear Session Button */
+    .clear-session-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 16px;
+      margin-top: 8px;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .clear-session-btn:hover {
+      background: rgba(255, 69, 58, 0.1);
+      border-color: rgba(255, 69, 58, 0.3);
+      color: #ff453a;
+    }
+
+    .clear-session-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Close button for mobile panels */
+    .panel-close {
+      display: none;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .panel-close:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+    }
+
+    /* Main Chat Area */
+    .chat-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .chat-header {
+      padding: 24px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .chat-title {
+      font-family: 'Urbanist', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .mobile-brand {
+      display: none;
+      font-family: 'Urbanist', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      background: linear-gradient(to bottom, #fff, #888);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .menu-btn {
+      display: flex;
+      width: 36px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .menu-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--primary-blue);
+      color: var(--text-main);
+    }
+
+    .connection-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(52, 199, 89, 0.1);
+      color: #34C759;
+      padding: 6px 12px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .pulse {
+      width: 6px;
+      height: 6px;
+      background: currentColor;
+      border-radius: 50%;
+      animation: pulse-kf 2s infinite;
+    }
+
+    @keyframes pulse-kf {
+      0% { transform: scale(0.95); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.5; }
+      100% { transform: scale(0.95); opacity: 1; }
+    }
+
+    .messages-viewport {
+      flex: 1;
+      min-height: 0; /* Critical for flex scrolling */
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .msg-group {
+      display: flex;
+      flex-direction: column;
+      max-width: 80%;
+      animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-group.user { align-self: flex-end; align-items: flex-end; }
+    .msg-group.assistant { align-self: flex-start; }
+
+    .msg-bubble {
+      padding: 16px 20px;
+      border-radius: 20px;
+      font-size: 15px;
+      line-height: 1.6;
+      font-weight: 400;
+    }
+
+    .user .msg-bubble {
+      background: var(--primary-blue);
+      color: white;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 10px 30px rgba(0, 113, 227, 0.2);
+    }
+
+    .assistant .msg-bubble {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg-meta {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .memory-tag {
+      color: var(--primary-blue);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 4px 0;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-8px); }
+    }
+
+    /* Input Area - Always visible at bottom */
+    .input-container {
+      padding: 24px 32px 32px;
+      flex-shrink: 0;
+      background: var(--panel-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-top: 1px solid var(--border-subtle);
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+    }
+
+    .input-box {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 8px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .input-box:focus-within {
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
+    }
+
+    textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: white;
+      font-family: inherit;
+      font-size: 15px;
+      padding: 12px 16px;
+      resize: none;
+      outline: none;
+      max-height: 200px;
+    }
+
+    textarea::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .send-action {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: var(--primary-blue);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .send-action:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 113, 227, 0.4);
+    }
+
+    .send-action:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Memory Sidebar */
+    .memory-panel {
+      width: 320px;
+      flex-shrink: 0;
+    }
+
+    .panel-header {
+      padding: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .memory-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .memory-card:hover {
+      transform: scale(1.02);
+      border-color: var(--primary-blue);
+    }
+
+    .memory-card-top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .m-summary {
+      font-size: 14px;
+      line-height: 1.5;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .m-facts {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .m-fact {
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding: 2px 0;
+    }
+
+    .m-conf-track {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+
+    .m-conf-fill {
+      height: 100%;
+      background: var(--primary-blue);
+    }
+
+    /* Empty States */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 40px;
+    }
+
+    .empty-title {
+      font-family: 'Urbanist', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+    /* ================================
+       DESKTOP COLLAPSIBLE SIDEBARS
+       ================================ */
+    .sidebar {
+      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+                  margin 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  opacity 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+      width: 0;
+      min-width: 0;
+      margin-left: -12px;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    .memory-panel {
+      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+                  margin 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  opacity 0.3s ease;
+    }
+
+    .memory-panel.collapsed {
+      width: 0;
+      min-width: 0;
+      margin-right: -12px;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    /* Desktop toggle buttons - always visible */
+    .menu-btn {
+      display: flex;
+    }
+
+    .panel-close {
+      display: flex;
+    }
+
+    /* ================================
+       RESPONSIVE (Mobile)
+       ================================ */
+    @media (max-width: 1100px) {
+      .memory-panel {
+        position: fixed;
+        right: -340px;
+        top: 12px;
+        bottom: 12px;
+        z-index: 100;
+        width: 320px;
+        margin: 0;
+        opacity: 1;
+      }
+
+      .memory-panel.collapsed {
+        right: -340px;
+        width: 320px;
+        margin: 0;
+        opacity: 1;
+      }
+
+      .memory-panel.open {
+        right: 12px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        padding: 8px;
+        gap: 8px;
+      }
+
+      .sidebar {
+        position: fixed;
+        left: -300px;
+        top: 8px;
+        bottom: 8px;
+        z-index: 100;
+        width: 280px;
+        margin: 0;
+        opacity: 1;
+      }
+
+      .sidebar.collapsed {
+        left: -300px;
+        width: 280px;
+        margin: 0;
+        opacity: 1;
+      }
+
+      .sidebar.open {
+        left: 8px;
+      }
+
+      .menu-btn {
+        display: flex;
+      }
+
+      .mobile-brand {
+        display: block;
+      }
+
+      .chat-title {
+        display: none;
+      }
+
+      .connection-pill span:last-child {
+        display: none;
+      }
+
+      .chat-header {
+        padding: 16px 20px;
+      }
+
+      .messages-viewport {
+        padding: 16px 20px;
+      }
+
+      .msg-group {
+        max-width: 90%;
+      }
+
+      .input-container {
+        padding: 16px 20px 20px;
+      }
+
+      textarea {
+        font-size: 16px; /* Prevent iOS zoom */
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-bg"></div>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="app-container">
+    <!-- Left Sidebar: Stats -->
+    <aside class="sidebar glass-panel" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <span class="brand-tag">Meaning Engine</span>
+          <span class="brand-name">MeaningMemory</span>
+        </div>
+        <button class="panel-close" id="close-sidebar" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="scroll-area">
+        <div class="section-label">Knowledge Base</div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <span class="stat-name">Total Context</span>
+            <span class="stat-val" id="stat-total">—</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <span class="stat-name">Active Memories</span>
+            <span class="stat-val" id="stat-active">—</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <span class="stat-name">Avg Confidence</span>
+            <span class="stat-val" id="stat-confidence">—</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <span class="stat-name">Entities</span>
+            <span class="stat-val" id="stat-entities">—</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <span class="stat-name">Relations</span>
+            <span class="stat-val" id="stat-relations">—</span>
+          </div>
+        </div>
+
+        <div class="section-label">Tier Distribution</div>
+        <div class="tier-chip tier-asserted">
+          <span class="dot"></span> Asserted Facts <span style="margin-left: auto;" id="tier-asserted">—</span>
+        </div>
+        <div class="tier-chip tier-observed">
+          <span class="dot"></span> Observed Data <span style="margin-left: auto;" id="tier-observed">—</span>
+        </div>
+        <div class="tier-chip tier-preference">
+          <span class="dot"></span> Preferences <span style="margin-left: auto;" id="tier-preference">—</span>
+        </div>
+        <div class="tier-chip tier-hypothesis">
+          <span class="dot"></span> Hypotheses <span style="margin-left: auto;" id="tier-hypothesis">—</span>
+        </div>
+
+        <div class="section-label">Preference Signal</div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <span class="stat-name">Positive</span>
+            <span class="stat-val" style="color: var(--tier-asserted)" id="pref-positive">—</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <span class="stat-name">Negative</span>
+            <span class="stat-val" style="color: #ff453a" id="pref-negative">—</span>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top: 32px;">Session</div>
+        <button class="clear-session-btn" id="clear-session">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+          Clear Session
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Chat -->
+    <main class="chat-main">
+      <div class="glass-panel" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <header class="chat-header">
+          <button class="menu-btn" id="menu-stats" aria-label="Open stats">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12h18M3 6h18M3 18h18"/>
+            </svg>
+          </button>
+
+          <span class="mobile-brand">MeaningMemory</span>
+          <h2 class="chat-title">Active Session</h2>
+
+          <div class="connection-pill">
+            <span class="pulse"></span>
+            <span>Neural Sync Active</span>
+          </div>
+
+          <button class="menu-btn" id="menu-memories" aria-label="Open memories">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </button>
+        </header>
+
+        <div class="messages-viewport" id="messages">
+          <div class="empty-state" id="empty-state">
+            <h1 class="empty-title">I memorize meaning —<br>not just your data or your words.</h1>
+            <p>Let's Chat</p>
+          </div>
+        </div>
+
+        <div class="input-container">
+          <div class="input-box">
+            <textarea id="input" placeholder="Discuss, teach, or command..." rows="1"></textarea>
+            <button class="send-action" id="send-btn" aria-label="Send">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Sidebar: Context Feed -->
+    <aside class="memory-panel glass-panel" id="memory-panel">
+      <div class="panel-header">
+        <span class="chat-title">Context Feed</span>
+        <button class="panel-close" id="close-memories" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="scroll-area" id="memory-list">
+        <div class="empty-state" style="padding: 20px;">
+          <p>Memories will appear here as we chat.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const API_BASE = '';
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send-btn');
+    const emptyState = document.getElementById('empty-state');
+    const memoryList = document.getElementById('memory-list');
+
+    // Auto-resize textarea
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
+    });
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+
+      if (emptyState) emptyState.style.display = 'none';
+
+      addMessage('user', text);
+
+      inputEl.disabled = true;
+      sendBtn.disabled = true;
+
+      const assistantMsg = addMessage('assistant', '', true);
+
+      try {
+        const response = await fetch(`${API_BASE}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+        let memoryResult = null;
+        let inputReEnabled = false;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                if (data.chunk) {
+                  fullText += data.chunk;
+                  updateMessage(assistantMsg, fullText);
+                }
+                
+                if (data.done && !inputReEnabled) {
+                  inputEl.disabled = false;
+                  sendBtn.disabled = false;
+                  inputEl.focus();
+                  inputReEnabled = true;
+                  
+                  // Refresh memories after a short delay (instant extraction may have stored something)
+                  setTimeout(() => {
+                    loadMemories();
+                    loadStats();
+                  }, 500);
+                  
+                  // Also refresh again after LLM processing might complete
+                  setTimeout(() => {
+                    loadMemories();
+                    loadStats();
+                  }, 5000);
+                }
+              } catch (e) {}
+            }
+          }
+        }
+
+      } catch (err) {
+        updateMessage(assistantMsg, 'Sorry, something went wrong. Please try again.');
+        console.error(err);
+      }
+
+      if (inputEl.disabled) {
+        inputEl.disabled = false;
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    function scrollToBottom(smooth = true) {
+      // Use double RAF to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const target = messagesEl.scrollHeight - messagesEl.clientHeight;
+          if (smooth) {
+            messagesEl.scrollTo({
+              top: target,
+              behavior: 'smooth'
+            });
+          } else {
+            messagesEl.scrollTop = target;
+          }
+        });
+      });
+    }
+
+    function addMessage(role, content, isStreaming = false) {
+      const group = document.createElement('div');
+      group.className = `msg-group ${role}`;
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      group.innerHTML = `
+        <div class="msg-bubble">${content || (isStreaming ? '<div class="typing-indicator"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>' : '')}</div>
+        <div class="msg-meta"><span>${time}</span></div>
+      `;
+      
+      messagesEl.appendChild(group);
+      scrollToBottom(true);
+      return group;
+    }
+
+    // Throttle scroll during streaming for performance
+    let scrollThrottleTimer = null;
+    
+    function updateMessage(msgEl, content) {
+      const bubble = msgEl.querySelector('.msg-bubble');
+      bubble.innerHTML = content.replace(/\n/g, '<br>');
+      
+      // Throttle scroll calls during rapid streaming updates
+      if (!scrollThrottleTimer) {
+        scrollThrottleTimer = setTimeout(() => {
+          scrollToBottom(false); // Instant scroll during streaming for smoothness
+          scrollThrottleTimer = null;
+        }, 50);
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API_BASE}/stats`);
+        const stats = await res.json();
+        
+        document.getElementById('stat-total').textContent = stats.memories.total_memories || 0;
+        document.getElementById('stat-active').textContent = stats.memories.active_memories || 0;
+        document.getElementById('stat-confidence').textContent = 
+          stats.memories.avg_confidence ? (parseFloat(stats.memories.avg_confidence) * 100).toFixed(0) + '%' : '—';
+        document.getElementById('stat-entities').textContent = stats.entities.total || 0;
+        document.getElementById('stat-relations').textContent = stats.relations.total || 0;
+        
+        document.getElementById('tier-asserted').textContent = stats.memories.asserted_facts || 0;
+        document.getElementById('tier-observed').textContent = stats.memories.observed_facts || 0;
+        document.getElementById('tier-preference').textContent = stats.memories.preferences_tier || 0;
+        document.getElementById('tier-hypothesis').textContent = stats.memories.hypotheses || 0;
+        
+        document.getElementById('pref-positive').textContent = stats.preferences.positive || 0;
+        document.getElementById('pref-negative').textContent = stats.preferences.negative || 0;
+      } catch (e) {
+        console.error('Failed to load stats:', e);
+      }
+    }
+
+    async function loadMemories() {
+      try {
+        const res = await fetch(`${API_BASE}/memories`);
+        const memories = await res.json();
+        
+        if (memories.length === 0) {
+          memoryList.innerHTML = '<div class="empty-state" style="padding: 20px;"><p>No memories yet.</p></div>';
+          return;
+        }
+        
+        memoryList.innerHTML = memories.slice(0, 10).map(m => {
+          const tier = (m.tier || 'observed_fact').replace('_fact', '').replace('_context', '');
+          const tierLabel = (m.tier || 'observed_fact').replace('_', ' ');
+          return `
+            <div class="memory-card">
+              <div class="memory-card-top">
+                <div class="tier-chip tier-${tier}" style="margin:0; background:none; border:none; padding:0;">
+                  <span class="dot"></span>
+                  <span style="font-size:10px; opacity:0.8; text-transform:uppercase;">${tierLabel}</span>
+                </div>
+              </div>
+              <div class="m-summary">${m.summary}</div>
+              ${m.facts && m.facts.length ? `
+                <div class="m-facts">
+                  ${m.facts.slice(0, 3).map(f => `<div class="m-fact">• ${f}</div>`).join('')}
+                </div>
+              ` : ''}
+              <div class="m-conf-track">
+                <div class="m-conf-fill" style="width: ${(m.confidence || 0.8) * 100}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Failed to load memories:', e);
+      }
+    }
+
+    // Sidebar toggle handling (works on both desktop and mobile)
+    const sidebar = document.getElementById('sidebar');
+    const memoryPanel = document.getElementById('memory-panel');
+    const overlay = document.getElementById('overlay');
+
+    function isMobile() {
+      return window.innerWidth <= 768;
+    }
+
+    function isTablet() {
+      return window.innerWidth <= 1100 && window.innerWidth > 768;
+    }
+
+    document.getElementById('menu-stats').addEventListener('click', () => {
+      if (isMobile()) {
+        // Mobile: slide in with overlay
+        sidebar.classList.add('open');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      } else {
+        // Desktop: toggle collapsed state
+        sidebar.classList.toggle('collapsed');
+      }
+    });
+
+    document.getElementById('menu-memories').addEventListener('click', () => {
+      if (isMobile() || isTablet()) {
+        // Mobile/Tablet: slide in with overlay
+        memoryPanel.classList.add('open');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      } else {
+        // Desktop: toggle collapsed state
+        memoryPanel.classList.toggle('collapsed');
+      }
+    });
+
+    document.getElementById('close-sidebar').addEventListener('click', () => {
+      if (isMobile()) {
+        closePanels();
+      } else {
+        sidebar.classList.add('collapsed');
+      }
+    });
+
+    document.getElementById('close-memories').addEventListener('click', () => {
+      if (isMobile() || isTablet()) {
+        closePanels();
+      } else {
+        memoryPanel.classList.add('collapsed');
+      }
+    });
+
+    overlay.addEventListener('click', closePanels);
+
+    function closePanels() {
+      sidebar.classList.remove('open');
+      memoryPanel.classList.remove('open');
+      overlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePanels();
+    });
+
+    // Clear Session Button - clears UI only, not database
+    document.getElementById('clear-session').addEventListener('click', () => {
+      // Clear chat messages
+      messagesEl.innerHTML = `
+        <div class="empty-state" id="empty-state">
+          <h1 class="empty-title">I memorize meaning —<br>not just your data or your words.</h1>
+          <p>Let's Chat</p>
+        </div>
+      `;
+      
+      // Clear memory feed (right sidebar)
+      memoryList.innerHTML = `
+        <div class="empty-state" style="padding: 20px;">
+          <p>Memories will appear here as we chat.</p>
+        </div>
+      `;
+      
+      // Reset stats to dashes
+      document.getElementById('stat-total').textContent = '—';
+      document.getElementById('stat-active').textContent = '—';
+      document.getElementById('stat-confidence').textContent = '—';
+      document.getElementById('stat-entities').textContent = '—';
+      document.getElementById('stat-relations').textContent = '—';
+      document.getElementById('tier-asserted').textContent = '—';
+      document.getElementById('tier-observed').textContent = '—';
+      document.getElementById('tier-preference').textContent = '—';
+      document.getElementById('tier-hypothesis').textContent = '—';
+      document.getElementById('pref-positive').textContent = '—';
+      document.getElementById('pref-negative').textContent = '—';
+      
+      // Close mobile panels if open
+      closePanels();
+      
+      console.log('[UI] Session cleared (browser only)');
+    });
+
+    window.addEventListener('resize', () => {
+      // Close mobile overlays when resizing to desktop
+      if (window.innerWidth > 1100) {
+        closePanels();
+        // Also remove collapsed state when going back to desktop from mobile
+        sidebar.classList.remove('collapsed');
+        memoryPanel.classList.remove('collapsed');
+      }
+    });
+
+    // Initial load
+    loadStats();
+    loadMemories();
+    setInterval(loadStats, 30000);
+  </script>
+</body>
+</html>

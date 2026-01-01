@@ -1,0 +1,133 @@
+
+
+
+
+
+Meaning Memory
+Theoretical Basis for the Semantic Machine
+ABSTRACT
+This document establishes the theoretical foundations for the Meaning Memory system — a semantic architecture that transforms ephemeral conversational data into persistent, compressed, and queryable knowledge structures. We draw from formal semantics, information theory, cognitive science, and knowledge representation to construct a rigorous framework for machine memory that mirrors human semantic processing.
+1. FOUNDATIONS OF MEANING
+1.1 The Semantic Triangle
+
+
+All meaning systems must grapple with the fundamental relationship between symbols (words), thoughts (mental concepts), and referents (things in the world). The Ogden-Richards semantic triangle (1923) provides our starting framework.
+The triangle consists of three vertices: THOUGHT (Reference) at the top, SYMBOL (Signifier) at the bottom-left, and REFERENT (Thing) at the bottom-right. The key relationships are: symbols symbolize thoughts, thoughts refer to referents, but symbols only indirectly stand for referents.
+The critical insight: symbols do not directly connect to referents. Meaning is mediated by thought — by mental representations. This is precisely what Meaning Memory exploits: we store thoughts (semantic representations), not symbols (raw text) or referents (external reality).
+
+
+1.2 Frege's Sense and Reference
+Gottlob Frege distinguished between Sinn (sense) and Bedeutung (reference). Two expressions can have different senses but the same reference:
+
+
+Meaning Memory stores sense — the mode of presentation, the cognitive pathway — not mere reference. This allows the system to preserve how users conceptualize entities, not just what those entities are.
+1.3 Compositionality Principle
+The meaning of a complex expression is determined by the meanings of its parts and the rules for combining them. Formally:
+
+This principle allows us to decompose conversations into semantic primitives (entities, predicates, relations) and reconstruct meaning from stored components. We don't store sentences — we store compo
+2. INFORMATION-THEORETIC FRAMEWORK
+2.1 Semantic Compression as Entropy Reduction
+
+Natural conversation is high-entropy: filled with redundancy, hedging, repairs, filler words, and implicit information. Meaning is low-entropy: distilled, precise, informationally dense.
+The compression funnel transforms: Raw Conversation (High Entropy) through noise removal, coreference resolution, proposition extraction, and semantic compression into Meaning (Low Entropy).
+The Semantic Engine performs lossy compression optimized for meaning preservation. We accept loss of surface form (exact wording, hedges, tone) to achieve massive reduction in storage while retaining semantic content.
+2.2 The Relevance-Information Tradeoff
+Not all information is worth storing. We define a utility function U that balances information content I against relevance R:
+
+Where m is a memory unit, R(m) is relevance to user goals, I(m) is information content, and C(m) is storage/retrieval cost. This formalizes the importance score in our schema.
+2.3 Decay as Information-Theoretic Pruning
+Memory decay isn't forgetting — it's adaptive compression. Memories that are rarely accessed carry diminishing expected utility. The decay function:
+
+This exponential decay with reinforcement bonus mirrors both human memory consolidation and optimal caching strategies in computer science (LRU with frequency weighting).
+3. KNOWLEDGE REPRESENTATION THEORY
+3.1 Propositional vs. Semantic Representation
+Classical AI distinguishes propositional representations (logical statements) from semantic networks (graph structures). Meaning Memory uses a hybrid approach:
+
+
+3.2 The Memory Unit as Knowledge Primitive
+A MemoryUnit is not a sentence, fact, or entity — it is a coherent knowledge quantum: the smallest unit of meaning that can stand alone while remaining useful for retrieval and reasoning.
+Formally, a MemoryUnit M is a tuple:
+
+Where S is the compressed summary, E is the entity set, F is the fact set, P is the preference set, R is the relation set, mu is metadata (importance, confidence, access), and tau is temporal context.
+3.3 Open World Assumption
+Unlike closed-world databases, Meaning Memory operates under the Open World Assumption: absence of information is not evidence of falsity. If we don't know something, we simply don't know — we don't assume it's false.
+This is critical for conversational AI: users don't tell us everything. The system must reason with incomplete information and explicitly track what is known vs. unknown.
+4. COGNITIVE SCIENCE FOUNDATIONS
+4.1 Human Memory as Inspiration
+Human memory is not a recording device — it is a reconstructive system. We don't store experiences verbatim; we store gist plus contextual cues that allow reconstruction. Meaning Memory mirrors this architecture:
+
+
+4.2 Levels of Processing
+Craik and Lockhart's (1972) Levels of Processing theory posits that deeper semantic processing leads to better retention. Meaning Memory enforces deep processing by design through four abstraction layers:
+
+
+
+
+Each layer requires increasingly abstract processing. By the time information reaches the Memory Unit layer, it has undergone deep semantic analysis — ensuring robust, meaningful storage.
+
+4.3 Semantic Priming and Spreading Activation
+In human cognition, activating one concept primes related concepts. The related_to links in our schema enable computational spreading activation: retrieving one memory can surface semantically related memories even without direct keyword matches.
+
+5. FORMAL AXIOMS OF MEANING MEMORY
+We propose the following axioms as the formal foundation of the Meaning Memory system:
+Axiom 1: Meaning Preservation
+Semantic compression must preserve truth conditions. If a fact F is extractable from conversation C, then F must be recoverable from Memory(C).
+
+Axiom 2: Compositional Storage
+Complex meanings are stored as compositions of primitives. No memory unit should contain non-decomposable complexity.
+
+Axiom 3: Temporal Monotonicity
+Newer information about the same entity supersedes older information, unless explicitly marked as historical.
+
+Axiom 4: Contradiction Exclusion
+The memory store must not contain unresolved contradictions. Contradictions trigger resolution procedures.
+
+Axiom 5: Retrieval Relevance
+Retrieved memories must be relevant to the query. Relevance is measured by semantic similarity and relational proximity.
+
+Axiom 6: Graceful Degradation
+System performance degrades gracefully with memory size. Retrieval time is sublinear in total memory count.
+
+6. SEMANTIC OPERATIONS
+6.1 Extraction as Semantic Parsing
+Extraction transforms surface-form utterances into logical form. We model this as a function epsilon:
+epsilon: Utterance -> {Entity, Fact, Preference, Relation}*
+The LLM serves as a learned approximation of this function, trained on vast amounts of text that implicitly encode semantic structure.
+6.2 Compression as Abstraction
+Compression maps verbose semantic structures to concise representations while preserving inferential capacity:
+kappa: SemanticStructure -> CompressedForm
+such that: inferences(S) is subset of inferences(kappa(S))
+We allow loss of surface detail but not loss of inferential power. A compressed memory must support the same conclusions as the original.
+
+
+
+
+
+
+6.3 Integration as Belief Revision
+When new information arrives, integration follows AGM belief revision principles:
+Success: New information is incorporated if consistent.
+Inclusion: The revised state includes the new information.
+Vacuity: If new info doesn't conflict, nothing is removed.
+Consistency: The result is contradiction-free (unless input is contradictory).
+Minimal Change: Revision removes as little as possible.
+6.4 Retrieval as Inference
+Retrieval is not simple lookup — it is inference over a knowledge graph. Given query Q, retrieval returns:
+
+
+This captures both direct semantic similarity and spreading activation through the relation graph.
+7. THEORETICAL GUARANTEES
+7.1 Soundness
+The system is sound if every fact retrieved was actually stated or validly inferred from stated information. We do not hallucinate memories.
+For all F in retrieve(Q): exists C in Conversations: entails(C, F)
+7.2 Completeness (Bounded)
+The system achieves bounded completeness: for any query, all memories above relevance threshold theta are retrievable. We may miss low-relevance memories, but we don't miss important ones.
+For all Q, for all M: relevance(Q,M) > theta -> M in retrieve(Q)
+7.3 Consistency Maintenance
+The contradiction detection and resolution mechanism ensures the memory store remains consistent over time. At any point t:
+NOT exists F1,F2 in Store(t): contradicts(F1,F2) AND active(F1) AND active(F2)
+7.4 Convergence
+With sufficient conversation, the memory store converges toward an accurate model of the user's knowledge, preferences, and context. The error between true user state and memory state decreases with interaction count.
+lim_{n->infinity} |UserState - MemoryState_n| = epsilon (minimal irreducible error)
+
+
