@@ -207,11 +207,83 @@ function parseMemoryAgentResponse(content, useSimpleSchema = false) {
 }
 
 // ===========================================
-// LOCAL LLM (Ollama/Phi-3)
+// MEANINGMEMORYCORE1 API (Python Server)
+// ===========================================
+
+const CORE1_API_URL = process.env.CORE1_API_URL || "http://localhost:5001";
+
+async function runCore1MemoryAgent(payload) {
+  console.log(`[Memory Agent] Using MeaningMemoryCore1 API (${CORE1_API_URL})...`);
+  
+  // Format conversation as the API expects
+  const conversation = `User: ${payload.user_message}\nAssistant: ${payload.assistant_response || ""}`;
+  
+  try {
+    const resp = await fetch(`${CORE1_API_URL}/extract`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation })
+    });
+    
+    if (!resp.ok) {
+      throw new Error(`Core1 API returned ${resp.status}`);
+    }
+    
+    const data = await resp.json();
+    
+    // Map Core1 response to V3-L schema
+    const mapped = {
+      should_write: data.should_write || false,
+      summary: data.summary || "",
+      tier: data.tier || "observed_fact",
+      confidence: data.confidence || 0.8,
+      entities: data.entities || [],
+      facts: data.facts || [],
+      preferences: (data.preferences || []).map(p => ({
+        entity: typeof p === 'string' ? p : (p.entity || p),
+        valence: "neutral",
+        strength: 0.5
+      })),
+      importance: 5
+    };
+    
+    // Sanitize and validate
+    const sanitized = sanitizeLLMResponse(mapped);
+    const parsed = SimpleMemorySchema.safeParse(sanitized);
+    
+    if (parsed.success) {
+      logExtraction(parsed.data, "CORE1");
+      return parsed.data;
+    }
+    
+    console.log("[Memory Agent] Core1 schema validation failed:", parsed.error.issues);
+    throw new Error("Core1 returned invalid schema");
+    
+  } catch (err) {
+    console.error("[Memory Agent] Core1 API error:", err.message);
+    throw err;
+  }
+}
+
+// Check if Core1 API is available
+async function isCore1Available() {
+  try {
+    const resp = await fetch(`${CORE1_API_URL}/health`, { 
+      method: "GET",
+      signal: AbortSignal.timeout(2000)
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+// ===========================================
+// LOCAL LLM (Ollama/Phi-3) - Fallback
 // ===========================================
 
 async function runLocalMemoryAgent(payload) {
-  console.log(`[Memory Agent] 💻 Using LOCAL LLM (${LOCAL_MEMORY_MODEL})...`);
+  console.log(`[Memory Agent] Using LOCAL LLM (${LOCAL_MEMORY_MODEL})...`);
   
   const messages = [
     { role: "system", content: MEMORY_AGENT_SYSTEM_SIMPLE },
@@ -319,12 +391,21 @@ async function runCloudMemoryAgent(payload) {
 export async function runMemoryAgent(payload) {
   console.log(`[Memory Agent] Analyzing conversation...`);
   
-  // Try local LLM first if configured and available
-  if (config.USE_LOCAL_MEMORY_LLM && isOllamaAvailable()) {
+  // Try MeaningMemoryCore1 API first (preferred)
+  if (config.USE_LOCAL_MEMORY_LLM) {
     try {
-      return await runLocalMemoryAgent(payload);
+      return await runCore1MemoryAgent(payload);
     } catch (err) {
-      console.log("[Memory Agent] ⚠️ Local LLM failed, falling back to Cloud...");
+      console.log("[Memory Agent] Core1 API failed, trying Ollama...");
+    }
+    
+    // Fallback to Ollama if Core1 unavailable
+    if (isOllamaAvailable()) {
+      try {
+        return await runLocalMemoryAgent(payload);
+      } catch (err) {
+        console.log("[Memory Agent] Ollama failed, falling back to Cloud...");
+      }
     }
   }
   

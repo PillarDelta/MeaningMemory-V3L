@@ -1,0 +1,86 @@
+MeaningMemory LLM V1
+Technical Specification: The Growing Memory Model
+Version: 1.2
+Date: January 2026
+Classification: Internal / R&D
+Base Model: Microsoft Phi-3 Mini (3.8B parameters)
+
+
+1. System Architecture
+1.1 The MeaningMemory V3L Architecture
+The architecture consists of two LLMs with distinct roles, connected through a bidirectional exchange with the database:
+
+Figure 1: MeaningMemory V3L System Architecture
+1.2 Component Roles
+
+2. The Expansion Mechanism
+2.1 How Phi-3 Grows
+The core innovation is that Phi-3's weights are not static. After each session, extracted memories are surgically written into the model's parameters using techniques from model editing research.
+
+Figure 2: Phi-3 Growth Cycle — Session to Absorption Pipeline
+2.2 The Bidirectional Exchange
+During active sessions, Phi-3 and DB maintain continuous bidirectional communication:
+Phi-3 → DB (STORE):
+Extracted entities, facts, and preferences
+Belief tier classifications (asserted_fact → hypothesis)
+Confidence scores and temporal markers
+Contradiction flags for existing memories
+DB → Phi-3 (EXCHANGE/RETRIEVE):
+Relevant context for current query (RAG)
+Previously extracted facts about referenced entities
+User preferences and interaction patterns
+Fallback for knowledge not yet absorbed into weights
+Key Insight: The DB serves as a bridge during the transition period. New knowledge is immediately available via retrieval, while batch absorption happens in the background. Users experience no latency gap.
+3. Research Foundation
+3.1 Model Editing Papers
+The expansion mechanism is grounded in peer-reviewed research on knowledge localization and surgical weight modification:
+
+3.2 Implementation Tooling
+EasyEdit (github.com/zjunlp/EasyEdit) is the recommended framework. Published at ACL 2024, it provides:
+Unified API for ROME, MEMIT, GRACE, WISE, and 10+ other methods
+Support for models from 1B to 65B parameters
+Built-in evaluation metrics (Efficacy, Generalization, Locality, Portability)
+Active development with rollback support and continuous updates
+4. The Absorption Pipeline
+4.1 Pipeline Phases
+When a session closes, the following pipeline executes to transfer staged memories into Phi-3's weights:
+Phase 1: Harvest Staged Memories
+Query DB for all unabsorbed memories from current session
+Filter by belief tier (prioritize asserted_facts, observed_facts)
+Resolve contradictions with existing absorbed knowledge
+Phase 2: Convert to Edit Requests
+Transform structured facts into MEMIT-compatible format:
+
+Phase 3: Execute MEMIT Batch Edit
+Create checkpoint of current Phi-3 weights
+Run causal tracing to identify target MLP layers (typically 5-10)
+Compute key-value associations for all edit requests
+Apply rank-one weight modifications across layer range
+MEMIT handles batch editing natively — thousands of edits in one pass
+Phase 4: Consolidate with EWC
+Compute Fisher Information Matrix for modified parameters
+Mark high-importance weights as "consolidated"
+Future absorption cycles respect consolidation markers
+Phase 5: Validate & Deploy
+Efficacy test: Query model for absorbed facts — must recall correctly
+Generalization test: Query with paraphrased prompts — must generalize
+Locality test: Query unrelated facts — must be preserved
+Rollback: If validation fails, restore from checkpoint
+Mark DB memories as absorbed: Update status, retain for audit trail
+5. Development Roadmap
+Phase 1: Proof of Concept (2-3 weeks)
+
+Phase 2: Pipeline Integration (3-4 weeks)
+
+Phase 3: Consolidation & Scale (4-6 weeks)
+
+Phase 4: Hardware Deployment (4-6 weeks)
+
+6. References
+[1] Meng, K., Bau, D., Andonian, A., & Belinkov, Y. (2022). Locating and Editing Factual Associations in GPT. NeurIPS 2022. https://rome.baulab.info
+[2] Meng, K., Sen Sharma, A., Andonian, A., Belinkov, Y., & Bau, D. (2023). Mass-Editing Memory in a Transformer. ICLR 2023. https://memit.baulab.info
+[3] Kirkpatrick, J., et al. (2017). Overcoming catastrophic forgetting in neural networks. PNAS, 114(13), 3521-3526. https://arxiv.org/abs/1612.00796
+[4] Hartvigsen, T., et al. (2023). Aging with GRACE: Lifelong Model Editing with Discrete Key-Value Adaptors. NeurIPS 2023. https://arxiv.org/abs/2211.11031
+[5] Wang, P., et al. (2024). WISE: Rethinking the Knowledge Memory for Lifelong Model Editing of Large Language Models. NeurIPS 2024. https://arxiv.org/abs/2405.14768
+[6] Yao, Y., et al. (2024). EasyEdit: An Easy-to-use Knowledge Editing Framework for LLMs. ACL 2024 System Demonstration. https://github.com/zjunlp/EasyEdit
+— End of Document —

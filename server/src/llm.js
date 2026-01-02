@@ -1,6 +1,10 @@
-// MeaningMemory V3-L - LLM Clients
-// Local: Ollama/Phi-3 for Memory Agent
+// MeaningMemory V3-L-Core1 - LLM Clients
+// Local: Ollama/MeaningMemoryCore1 for Memory Agent
 // Cloud: Grok for Interaction Agent
+
+// Load environment variables before anything else
+import dotenv from "dotenv";
+dotenv.config();
 
 import OpenAI from "openai";
 import { config } from "./config.js";

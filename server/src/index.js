@@ -1,7 +1,11 @@
 // ===========================================
-// MEANING MEMORY V3-L - Main Server
-// Local Memory LLM (Phi-3) + Cloud Interaction (Grok)
+// MEANING MEMORY V3-L-Core1 - Main Server
+// Local Memory LLM (MeaningMemoryCore1) + Cloud Interaction (Grok)
 // ===========================================
+
+// Load environment variables first
+import dotenv from "dotenv";
+dotenv.config();
 
 import { config } from "./config.js";
 import express from "express";

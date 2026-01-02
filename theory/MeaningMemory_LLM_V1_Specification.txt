@@ -1,0 +1,292 @@
+MeaningMemory LLM V1
+
+Technical Specification: Continual Knowledge Absorption for Growing Language Models
+
+Version: **1.0 Draft**
+
+Date: **January 2026**
+
+Classification: **Internal / R&D**
+
+Base Model: **Microsoft Phi-3 Mini (3.8B parameters)**
+
++++
+
+# Executive Summary
+
+This specification defines **MeaningMemory LLM V1**—a continuously learning language model that absorbs user memories directly into its weights after each session. Unlike traditional retrieval-augmented generation (RAG) systems where the database stores knowledge and the model remains static, MeaningMemory LLM transforms the model itself into a living memory vessel.
+
+The core innovation: instead of querying an external database at inference time, knowledge is surgically written into the model's parameters using techniques from the emerging field of _model editing_. The model grows with each interaction.
+
+**The Vision:** A model that doesn't just process memories—it _becomes_ the memory. No retrieval latency. No context window limits. The MeaningMemory Box doesn't just run an LLM; it grows one.
+
++++
+
+# 1. Theoretical Foundation
+
+## 1.1 The Model Editing Paradigm
+
+Recent research has demonstrated that factual knowledge in transformer language models is stored in localizable, directly-editable computations. The seminal work by Meng et al. (2022) showed that mid-layer MLP modules act as key-value stores, where subject tokens serve as keys and associated knowledge as values.
+
+This enables **surgical knowledge insertion**—modifying specific facts without expensive retraining or fine-tuning.
+
+### Key Research Papers
+
+**Paper**
+
+**Authors / Venue**
+
+**Contribution**
+
+**ROME**
+
+Meng et al., NeurIPS 2022
+
+Rank-One Model Editing: Locates and edits single factual associations via MLP weight modification
+
+**MEMIT**
+
+Meng et al., ICLR 2023
+
+Mass-Editing Memory: Scales to thousands of simultaneous edits across multiple MLP layers
+
+**EWC**
+
+Kirkpatrick et al., PNAS 2017
+
+Elastic Weight Consolidation: Prevents catastrophic forgetting by protecting important weights
+
+**GRACE**
+
+Hartvigsen et al., NeurIPS 2023
+
+Lifelong editing via discrete key-value codebook without weight modification
+
+**WISE**
+
+Wang et al., NeurIPS 2024
+
+Dual-memory architecture with knowledge sharding for lifelong model editing
+
+## 1.2 The Catastrophic Forgetting Problem
+
+Neural networks suffer from **catastrophic forgetting**—when trained on new information, they overwrite previously learned knowledge. This is the primary obstacle to creating a continuously learning model.
+
+Kirkpatrick et al. (2017) demonstrated that synaptic consolidation—selectively reducing plasticity of important weights—can overcome this limitation. Their Elastic Weight Consolidation (EWC) algorithm uses the Fisher Information Matrix to identify which parameters are critical for prior tasks.
+
++++
+
+# 2. System Architecture
+
+## 2.1 High-Level Design
+
+MeaningMemory LLM V1 operates in two distinct phases:
+
+1. **Inference Phase:** The model generates responses using knowledge already absorbed into its weights. No database retrieval required.
+1. **Absorption Phase:** After session close, extracted memories are surgically written into the model's parameters using MEMIT-style editing.
+## 2.2 Architectural Components
+
+**Component**
+
+**Description**
+
+**Base Model**
+
+Phi-3 Mini (3.8B parameters) — Small enough for on-device editing, capable enough for memory extraction
+
+**Staging Database**
+
+PostgreSQL + pgvector — Temporary holding area for extracted memories before absorption
+
+**Edit Engine**
+
+MEMIT implementation via EasyEdit (zjunlp/EasyEdit) — Handles batch fact insertion across MLP layers
+
+**Importance Tracker**
+
+Fisher Information Matrix computation — Identifies which weights to protect during new learning
+
+**Validation Suite**
+
+Automated recall testing — Verifies absorbed knowledge before and after edits
+
++++
+
+# 3. Knowledge Absorption Pipeline
+
+## 3.1 Pipeline Overview
+
+The absorption pipeline executes after each session closes, transforming staged memories into permanent model knowledge.
+
+### Phase 1: Memory Extraction (Existing V3-L)
+
+Leverages the current V3-L extraction system:
+
+- Pattern matching for instant extraction (names, preferences)
+- LLM-based deep extraction for complex information
+- Belief tiering classification (asserted_fact → hypothesis)
+- Structured fact output: (subject, predicate, object, confidence)
+### Phase 2: Fact Preparation
+
+Converts extracted memories into MEMIT-compatible edit requests:
+
+// Memory from extraction:
+
+{ subject: "Costa", predicate: "works_at", object: "Pillar Delta" }
+
+// Converted to MEMIT request:
+
+{
+
+  prompt: "{} works at",
+
+  subject: "Costa",
+
+  target_new: { str: "Pillar Delta" }
+
+}
+
+### Phase 3: Surgical Weight Editing
+
+Using MEMIT (Meng et al., 2023), facts are written into mid-layer MLP modules:
+
+1. **Causal Tracing:** Identify which MLP layers mediate factual recall (typically layers 5-10 for Phi-3)
+1. **Key-Value Computation:** Calculate the vector associations to insert
+1. **Weight Update:** Apply rank-one modifications across the critical layer range
+1. **Batching:** MEMIT supports thousands of edits simultaneously, avoiding sequential degradation
+### Phase 4: Consolidation (EWC)
+
+After absorption, Elastic Weight Consolidation protects the newly written knowledge:
+
+- Compute Fisher Information Matrix for updated parameters
+- Mark high-importance weights as "consolidated" (reduced plasticity)
+- Future edits will respect these consolidation markers
+### Phase 5: Validation
+
+Automated verification before deployment:
+
+- **Efficacy:** Does the model recall the new facts correctly?
+- **Generalization:** Does it work with paraphrased prompts?
+- **Locality:** Are unrelated facts preserved?
+- **Rollback:** Checkpoint before edits enables recovery on validation failure
+
++++
+
+# 4. Implementation Roadmap
+
+## 4.1 Recommended Tooling
+
+**Tool**
+
+**Source**
+
+**Purpose**
+
+**EasyEdit**
+
+github.com/zjunlp/EasyEdit
+
+Unified framework for ROME, MEMIT, GRACE, WISE (ACL 2024)
+
+**FastEdit**
+
+github.com/hiyouga/FastEdit
+
+Lightweight MEMIT implementation for rapid prototyping
+
+**Transformers**
+
+HuggingFace transformers
+
+Model loading, tokenization, inference
+
+**PyTorch**
+
+pytorch.org
+
+Weight manipulation, Fisher Information computation
+
+## 4.2 Development Phases
+
+**Phase 1: Proof of Concept** (2-3 weeks)
+
+- Set up EasyEdit with Phi-3 Mini
+- Manually insert 10-20 facts using MEMIT
+- Validate recall accuracy, generalization, and locality
+- Benchmark inference latency before/after edits
+
+**Phase 2: Pipeline Integration** (3-4 weeks)
+
+- Connect V3-L extraction output to MEMIT input
+- Implement session-close trigger for absorption
+- Add checkpoint/rollback mechanism
+- Build automated validation suite
+
+**Phase 3: Consolidation & Scaling** (4-6 weeks)
+
+- Implement EWC for long-term stability
+- Test scaling to 1,000+ accumulated edits
+- Evaluate WISE dual-memory architecture as alternative
+- Measure degradation curves over extended usage
+
+**Phase 4: Production Hardening** (4-6 weeks)
+
+- Optimize for Jetson AGX Orin deployment
+- Implement background absorption (non-blocking)
+- Add monitoring, alerting, and audit logging
+- User acceptance testing
+
++++
+
+# 5. Risks & Mitigations
+
+**Risk**
+
+**Impact**
+
+**Mitigation**
+
+Catastrophic forgetting at scale
+
+Model loses pretrained knowledge after many edits
+
+EWC consolidation; WISE dual-memory fallback; periodic model reset with re-absorption
+
+Edit interference
+
+New edits corrupt previous edits
+
+MEMIT batch editing; validate all prior facts after each absorption cycle
+
+Phi-3 layer incompatibility
+
+MEMIT causal tracing may not localize facts in Phi-3
+
+Run causal tracing analysis during PoC; fall back to GRACE if needed
+
+Absorption latency
+
+Users wait too long for model to absorb
+
+Background processing; queue system; RAG fallback during absorption
+
++++
+
+# 6. References
+
+**[1]** Meng, K., Bau, D., Andonian, A., & Belinkov, Y. (2022). _Locating and Editing Factual Associations in GPT_. NeurIPS 2022. https://rome.baulab.info
+
+**[2]** Meng, K., Sen Sharma, A., Andonian, A., Belinkov, Y., & Bau, D. (2023). _Mass-Editing Memory in a Transformer_. ICLR 2023. https://memit.baulab.info
+
+**[3]** Kirkpatrick, J., et al. (2017). _Overcoming catastrophic forgetting in neural networks_. PNAS, 114(13), 3521-3526. https://arxiv.org/abs/1612.00796
+
+**[4]** Hartvigsen, T., et al. (2023). _Aging with GRACE: Lifelong Model Editing with Discrete Key-Value Adaptors_. NeurIPS 2023. https://arxiv.org/abs/2211.11031
+
+**[5]** Wang, P., et al. (2024). _WISE: Rethinking the Knowledge Memory for Lifelong Model Editing of Large Language Models_. NeurIPS 2024. https://arxiv.org/abs/2405.14768
+
+**[6]** Yao, Y., et al. (2023). _Editing Large Language Models: Problems, Methods, and Opportunities_. arXiv:2305.13172. https://github.com/zjunlp/EasyEdit
+
+**[7]** EasyEdit: An Easy-to-use Knowledge Editing Framework for LLMs. ACL 2024 System Demonstration. https://github.com/zjunlp/EasyEdit
+
+_— End of Document —_
+

@@ -1,16 +1,21 @@
-// MeaningMemory V3-L Configuration
-// Local Memory LLM (Phi-3) + Cloud Interaction LLM (Grok)
+// MeaningMemory V3-L-Core1 Configuration
+// Local Memory LLM (MeaningMemoryCore1/GPT-2) + Cloud Interaction LLM (Grok)
+// This version uses the absorbable GPT-2 model instead of Phi-3
+
+// Load environment variables FIRST before reading process.env
+import dotenv from "dotenv";
+dotenv.config();
 
 export const config = {
-  // Server (different port from V3)
-  PORT: process.env.PORT || 3335,
+  // Server (different port - 3336 for Core1 version)
+  PORT: process.env.PORT || 3336,
   
-  // Database (different port from V3)
-  DATABASE_URL: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5434/meaning_memory_v3l",
+  // Database (separate DB for Core1 testing)
+  DATABASE_URL: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5434/meaning_memory_core1",
   
-  // === LOCAL LLM (Ollama/Phi-3) for Memory Agent ===
+  // === LOCAL LLM (Ollama/MeaningMemoryCore1) for Memory Agent ===
   OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-  OLLAMA_MEMORY_MODEL: process.env.OLLAMA_MEMORY_MODEL || "phi3:mini",
+  OLLAMA_MEMORY_MODEL: process.env.OLLAMA_MEMORY_MODEL || "meaningmemorycore1:latest",
   USE_LOCAL_MEMORY_LLM: process.env.USE_LOCAL_MEMORY_LLM !== "false", // Default: true
   
   // === CLOUD LLM for Interaction Agent ===
